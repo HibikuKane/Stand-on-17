@@ -134,7 +134,9 @@ export function bankrollBeforePayout(game: Game): number {
 
 /** 테이블 영역별 HTML. 영역마다 따로 갱신해서, 바뀌지 않은 영역의 진행 중인 애니메이션을 지킨다 */
 export interface TableHtml {
-  dealer: string;
+  /** 딜러 라벨(합계). 카드와 따로 갱신해야 합계 변경·표시 토글이 카드 애니메이션을 끊지 않는다 */
+  dealerLabel: string;
+  dealerCards: string;
   message: string;
   player: string;
   playerClass: string;
@@ -159,9 +161,8 @@ export function renderTable(s: ViewState): TableHtml {
   const empty = game.hands.length === 0;
 
   return {
-    dealer: `
-      <div class="label">딜러 ${dealerTotal ? `<span class="total">${dealerTotal}</span>` : ''}</div>
-      <div class="cards">${cardsHtml('d', dealer, hideHole, !!reveal?.flipNow)}</div>`,
+    dealerLabel: `딜러 ${dealerTotal ? `<span class="total">${dealerTotal}</span>` : ''}`,
+    dealerCards: cardsHtml('d', dealer, hideHole, !!reveal?.flipNow),
     message: messageText(s),
     player: empty ? '<div class="placeholder">칩을 눌러 베팅하고 딜!</div>' : hands,
     playerClass: `player ${game.hands.length > 1 ? 'multi' : ''}`,

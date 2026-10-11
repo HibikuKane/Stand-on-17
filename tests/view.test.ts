@@ -78,9 +78,9 @@ describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 �
     renderTable(s);
     s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
     const flipping = renderTable({ ...s, toast: '🔀 슈를 섞었습니다' });
-    expect(flipping.dealer).toContain(' flip');
+    expect(flipping.dealerCards).toContain(' flip');
     const toastGone = renderTable(s);
-    expect(withoutAnim(toastGone.dealer)).toBe(withoutAnim(flipping.dealer));
+    expect(withoutAnim(toastGone.dealerCards)).toBe(withoutAnim(flipping.dealerCards));
     expect(withoutAnim(toastGone.player)).toBe(withoutAnim(flipping.player));
     expect(toastGone.message).not.toBe(flipping.message);
   });
@@ -90,11 +90,22 @@ describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 �
     const hidden = renderTable(s);
     s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
     const flipping = renderTable(s);
-    expect(withoutAnim(flipping.dealer)).not.toBe(withoutAnim(hidden.dealer));
+    expect(withoutAnim(flipping.dealerCards)).not.toBe(withoutAnim(hidden.dealerCards));
     s.reveal = { ...s.reveal!, flipNow: false };
     const flipped = renderTable(s);
-    // 뒤집기 후 합계가 10 → 18로 갱신
-    expect(withoutAnim(flipped.dealer)).not.toBe(withoutAnim(flipping.dealer));
-    expect(flipped.dealer).toContain('>18<');
+    // 뒤집기 후 합계가 10 → 18로 갱신. 카드 영역은 그대로
+    expect(flipped.dealerLabel).not.toBe(flipping.dealerLabel);
+    expect(flipped.dealerLabel).toContain('>18<');
+    expect(withoutAnim(flipped.dealerCards)).toBe(withoutAnim(flipping.dealerCards));
+  });
+
+  it('뒤집는 도중 합계 표시를 끄면 라벨만 바뀌고 딜러 카드 영역은 같은 내용으로 본다', () => {
+    const s = revealing();
+    renderTable(s);
+    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    const flipping = renderTable(s);
+    const totalsOff = renderTable({ ...s, showTotals: false });
+    expect(totalsOff.dealerLabel).not.toBe(flipping.dealerLabel);
+    expect(withoutAnim(totalsOff.dealerCards)).toBe(withoutAnim(flipping.dealerCards));
   });
 });

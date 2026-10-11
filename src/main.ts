@@ -31,7 +31,10 @@ app.innerHTML = `
     <button id="open-settings" class="icon" aria-label="설정">⚙️</button>
   </header>
   <main id="table">
-    <section class="dealer" id="dealer"></section>
+    <section class="dealer">
+      <div class="label" id="dealer-label"></div>
+      <div class="cards" id="dealer-cards"></div>
+    </section>
     <div class="message" id="message"></div>
     <section class="player" id="player"></section>
   </main>
@@ -66,7 +69,8 @@ function render(): void {
   const view = { game, bet: data.bet, showTotals: data.showTotals, toast, reveal };
   $('#bankroll').textContent = money(reveal ? reveal.bankroll : game.bankroll);
   const table = renderTable(view);
-  patch($('#dealer'), table.dealer);
+  patch($('#dealer-label'), table.dealerLabel);
+  patch($('#dealer-cards'), table.dealerCards);
   patch($('#message'), table.message);
   patch($('#player'), table.player);
   $('#player').className = table.playerClass;
