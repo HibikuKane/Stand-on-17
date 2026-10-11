@@ -2,6 +2,8 @@
 
 폰 브라우저에서 바로 켜서 노는 블랙잭. TypeScript + Vite, 프레임워크 없음.
 
+**플레이: https://hibikukane.github.io/Stand-on-17/**
+
 ## 기능
 
 - 히트 / 스탠드 / 더블 다운 / 스플릿(최대 4핸드) / 보험·이븐 머니 / 레이트 서렌더
@@ -34,6 +36,7 @@ tests/        엔진 테스트
 
 - [`docs/specs/`](docs/specs/) — 기능 사양서
 - [`docs/intent-log/`](docs/intent-log/) — 개발 세션별 의도 기록 (LLM 질문 ↔ 사용자 답변 원문)
+- [`AGENTS.md`](AGENTS.md) — AI 에이전트(Claude·GPT·Gemini) 공통 작업 규칙
 
 ## 배포
 
