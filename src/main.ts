@@ -1,7 +1,17 @@
 import './style.css';
 import { Game } from './engine/game';
 import { Shoe } from './engine/shoe';
-import { CHIPS, money, renderControls, renderTable, resetSeen } from './ui/view';
+import {
+  bankrollBeforePayout,
+  CHIPS,
+  money,
+  renderControls,
+  renderTable,
+  resetSeen,
+  TIMING,
+  withoutAnim,
+  type Reveal,
+} from './ui/view';
 import { load, save, STARTING_BANKROLL, type SaveData } from './ui/storage';
 import { settingsHtml } from './ui/settings';
 
@@ -10,6 +20,8 @@ let shoe = new Shoe(data.rules.decks);
 const game = new Game({ ...data.rules }, shoe, data.bankroll);
 let toast = '';
 let toastTimer = 0;
+/** 딜러 공개 연출 상태. null이면 연출 중이 아님 */
+let reveal: Reveal | null = null;
 
 const app = document.querySelector<HTMLDivElement>('#app')!;
 app.innerHTML = `
@@ -18,7 +30,14 @@ app.innerHTML = `
     <div class="shoe" id="shoe" title="슈 잔량"><div class="shoe-bar"><i></i></div><span></span></div>
     <button id="open-settings" class="icon" aria-label="설정">⚙️</button>
   </header>
-  <main id="table"></main>
+  <main id="table">
+    <section class="dealer">
+      <div class="label" id="dealer-label"></div>
+      <div class="cards" id="dealer-cards"></div>
+    </section>
+    <div class="message" id="message"></div>
+    <section class="player" id="player"></section>
+  </main>
   <footer id="controls"></footer>
   <dialog id="settings"></dialog>`;
 
@@ -47,14 +66,29 @@ function render(): void {
   if ((game.phase === 'betting' || game.phase === 'settled') && data.bet > game.bankroll) {
     data.bet = Math.floor(game.bankroll / CHIPS[0]) * CHIPS[0];
   }
-  const view = { game, bet: data.bet, showTotals: data.showTotals, toast };
-  $('#bankroll').textContent = money(game.bankroll);
-  $('#table').innerHTML = renderTable(view);
+  const view = { game, bet: data.bet, showTotals: data.showTotals, toast, reveal };
+  $('#bankroll').textContent = money(reveal ? reveal.bankroll : game.bankroll);
+  const table = renderTable(view);
+  patch($('#dealer-label'), table.dealerLabel);
+  patch($('#dealer-cards'), table.dealerCards);
+  patch($('#message'), table.message);
+  patch($('#player'), table.player);
+  $('#player').className = table.playerClass;
   $('#controls').innerHTML = renderControls(view);
 
   const ratio = shoe.remaining / shoe.total;
   $<HTMLElement>('#shoe i').style.width = `${ratio * 100}%`;
   $('#shoe span').textContent = `${shoe.remaining}`;
+}
+
+/** 영역별 마지막 내용(애니메이션 제외). 같으면 DOM을 그대로 둬서 진행 중인 딜·뒤집기 애니메이션을 끊지 않는다 */
+const shown = new WeakMap<HTMLElement, string>();
+
+function patch(el: HTMLElement, html: string): void {
+  const key = withoutAnim(html);
+  if (shown.get(el) === key) return;
+  shown.set(el, key);
+  el.innerHTML = html;
 }
 
 /** 라운드 사이에만 룰/덱 변경을 반영 */
@@ -71,9 +105,40 @@ function between(): boolean {
   return game.phase === 'betting' || game.phase === 'settled';
 }
 
+const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
+
+/**
+ * 홀 카드를 뒤집고 딜러 추가 카드를 한 장씩 보여 준 뒤 결과를 띄운다.
+ * 엔진 상태는 이미 정산까지 끝나 있고, 화면만 단계적으로 따라간다.
+ */
+async function playReveal(afterDeal: boolean): Promise<void> {
+  reveal = { dealerShown: 2, holeOpen: false, flipNow: false, bankroll: bankrollBeforePayout(game) };
+  render();
+  await wait(afterDeal ? TIMING.beforeFlipAfterDeal : TIMING.beforeFlip);
+
+  reveal.holeOpen = true;
+  reveal.flipNow = true;
+  render();
+  await wait(TIMING.flip);
+  reveal.flipNow = false;
+  render();
+
+  if (game.dealer.length > 2) await wait(TIMING.afterFlip);
+  while (reveal.dealerShown < game.dealer.length) {
+    reveal.dealerShown++;
+    render();
+    await wait(TIMING.dealerDraw);
+  }
+
+  await wait(TIMING.beforeResult);
+  reveal = null;
+  render();
+}
+
 $('#controls').addEventListener('click', (e) => {
   const target = (e.target as HTMLElement).closest('button');
-  if (!target || target.disabled) return;
+  if (!target || target.disabled || reveal) return;
+  const holeWasHidden = target.dataset.act === 'deal' || (!game.holeRevealed && game.dealer.length > 1);
 
   const chip = target.dataset.chip;
   if (chip) {
@@ -126,6 +191,11 @@ $('#controls').addEventListener('click', (e) => {
       break;
   }
   if (between()) persist();
+  // 이번 조작으로 홀 카드가 공개됐으면(라운드 종료) 딜러 공개 연출
+  if (holeWasHidden && game.holeRevealed) {
+    void playReveal(target.dataset.act === 'deal');
+    return;
+  }
   render();
 });
 
