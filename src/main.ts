@@ -74,6 +74,7 @@ $('#controls').addEventListener('click', (e) => {
   const chip = target.dataset.chip;
   if (chip) {
     data.bet = Math.min(game.bankroll, data.bet + Number(chip));
+    persist();
     render();
     return;
   }

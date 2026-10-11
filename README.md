@@ -30,6 +30,11 @@ src/ui/       화면 렌더링·설정·저장
 tests/        엔진 테스트
 ```
 
+## 문서
+
+- [`docs/specs/`](docs/specs/) — 기능 사양서
+- [`docs/intent-log/`](docs/intent-log/) — 개발 세션별 의도 기록 (LLM 질문 ↔ 사용자 답변 원문)
+
 ## 배포
 
 `main`에 푸시하면 GitHub Actions가 GitHub Pages로 배포합니다.
