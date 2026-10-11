@@ -203,14 +203,14 @@ main {
   animation: deal 0.33s ease-out both;
 }
 
-/* 딜러 추가 카드는 한 장씩 천천히 (main.ts TIMING.dealerDraw 간격) */
+/* 딜러 추가 카드는 뒷면으로 깔린다 (view.ts TIMING.drawDeal과 같은 길이) */
 .dealer .card.deal {
-  animation-duration: 0.45s;
+  animation-duration: 0.475s;
 }
 
-/* 홀 카드 공개: 살짝 들어 올렸다가 천천히 뒤집는다 (TIMING.flip과 같은 길이) */
+/* 홀 카드·딜러 추가 카드 공개: 살짝 들어 올렸다가 뒤집는다 (TIMING.flip과 같은 길이) */
 .card.flip {
-  animation: flip 0.95s ease-in-out both;
+  animation: flip 0.475s ease-in-out both;
 }
 
 .card.flip::after {
@@ -221,7 +221,7 @@ main {
   border: 4px solid #fdfdfb;
   background: repeating-linear-gradient(45deg, #8e1b1b 0 6px, #a82424 6px 12px);
   opacity: 0;
-  animation: flip-back 0.95s both;
+  animation: flip-back 0.475s both;
 }
 
 @keyframes flip {

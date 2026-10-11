@@ -69,14 +69,14 @@ describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 �
       bet: 100,
       showTotals: true,
       toast: '',
-      reveal: { dealerShown: 2, holeOpen: false, flipNow: false, bankroll: 900 },
+      reveal: { dealerShown: 2, faceUp: 1, flipNow: false, bankroll: 900 },
     };
   }
 
   it('뒤집는 도중 토스트만 바뀌면 딜러·플레이어 영역은 같은 내용으로 본다', () => {
     const s = revealing();
     renderTable(s);
-    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    s.reveal = { ...s.reveal!, faceUp: 2, flipNow: true };
     const flipping = renderTable({ ...s, toast: '🔀 슈를 섞었습니다' });
     expect(flipping.dealerCards).toContain(' flip');
     const toastGone = renderTable(s);
@@ -88,7 +88,7 @@ describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 �
   it('홀 카드 공개·합계 갱신처럼 내용이 바뀌면 다른 내용으로 본다', () => {
     const s = revealing();
     const hidden = renderTable(s);
-    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    s.reveal = { ...s.reveal!, faceUp: 2, flipNow: true };
     const flipping = renderTable(s);
     expect(withoutAnim(flipping.dealerCards)).not.toBe(withoutAnim(hidden.dealerCards));
     s.reveal = { ...s.reveal!, flipNow: false };
@@ -102,10 +102,40 @@ describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 �
   it('뒤집는 도중 합계 표시를 끄면 라벨만 바뀌고 딜러 카드 영역은 같은 내용으로 본다', () => {
     const s = revealing();
     renderTable(s);
-    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    s.reveal = { ...s.reveal!, faceUp: 2, flipNow: true };
     const flipping = renderTable(s);
     const totalsOff = renderTable({ ...s, showTotals: false });
     expect(totalsOff.dealerLabel).not.toBe(flipping.dealerLabel);
     expect(withoutAnim(totalsOff.dealerCards)).toBe(withoutAnim(flipping.dealerCards));
+  });
+
+  it('딜러 추가 카드는 뒷면으로 깔린 뒤 뒤집히고, 합계는 다 뒤집은 뒤 갱신한다', () => {
+    resetSeen();
+    // 플: 10,8 → 스탠드 / 딜: 10,6 → 5 받아 21
+    const g = game(['10', '10', '8', '6', '5']);
+    g.deal(100);
+    g.stand();
+    expect(g.dealer.length).toBe(3);
+    const s: ViewState = {
+      game: g,
+      bet: 100,
+      showTotals: true,
+      toast: '',
+      reveal: { dealerShown: 2, faceUp: 2, flipNow: false, bankroll: 900 },
+    };
+    renderTable(s);
+    s.reveal = { ...s.reveal!, dealerShown: 3 };
+    const dealt = renderTable(s);
+    expect(dealt.dealerCards).toContain('class="card back deal"');
+    expect(dealt.dealerLabel).toContain('>16<');
+    s.reveal = { ...s.reveal!, faceUp: 3, flipNow: true };
+    const flipping = renderTable(s);
+    expect(flipping.dealerCards).toContain(' flip');
+    expect(flipping.dealerCards).not.toContain('back');
+    expect(flipping.dealerLabel).toContain('>16<');
+    s.reveal = { ...s.reveal!, flipNow: false };
+    const flipped = renderTable(s);
+    expect(flipped.dealerLabel).toContain('>21<');
+    expect(withoutAnim(flipped.dealerCards)).toBe(withoutAnim(flipping.dealerCards));
   });
 });

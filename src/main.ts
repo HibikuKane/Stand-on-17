@@ -108,26 +108,33 @@ function between(): boolean {
 const wait = (ms: number) => new Promise<void>((r) => setTimeout(r, ms));
 
 /**
- * 홀 카드를 뒤집고 딜러 추가 카드를 한 장씩 보여 준 뒤 결과를 띄운다.
+ * 홀 카드를 뒤집고, 딜러 추가 카드를 한 장씩 뒷면으로 깔았다가 뒤집은 뒤 결과를 띄운다.
  * 엔진 상태는 이미 정산까지 끝나 있고, 화면만 단계적으로 따라간다.
  */
 async function playReveal(afterDeal: boolean): Promise<void> {
-  reveal = { dealerShown: 2, holeOpen: false, flipNow: false, bankroll: bankrollBeforePayout(game) };
+  const r: Reveal = { dealerShown: 2, faceUp: 1, flipNow: false, bankroll: bankrollBeforePayout(game) };
+  reveal = r;
   render();
   await wait(afterDeal ? TIMING.beforeFlipAfterDeal : TIMING.beforeFlip);
 
-  reveal.holeOpen = true;
-  reveal.flipNow = true;
-  render();
-  await wait(TIMING.flip);
-  reveal.flipNow = false;
-  render();
-
-  if (game.dealer.length > 2) await wait(TIMING.afterFlip);
-  while (reveal.dealerShown < game.dealer.length) {
-    reveal.dealerShown++;
+  /** 앞면 다음 장을 뒤집는다 */
+  const flipNext = async () => {
+    r.faceUp++;
+    r.flipNow = true;
     render();
-    await wait(TIMING.dealerDraw);
+    await wait(TIMING.flip);
+    r.flipNow = false;
+    render();
+  };
+
+  await flipNext();
+  if (game.dealer.length > 2) await wait(TIMING.afterFlip);
+  while (r.dealerShown < game.dealer.length) {
+    if (r.dealerShown > 2) await wait(TIMING.betweenDraws);
+    r.dealerShown++;
+    render();
+    await wait(TIMING.drawDeal);
+    await flipNext();
   }
 
   await wait(TIMING.beforeResult);
