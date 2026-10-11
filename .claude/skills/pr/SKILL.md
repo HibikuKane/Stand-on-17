@@ -9,7 +9,7 @@ description: 이 저장소 규칙(작성자 표기, 변경 범위, 사양, 에�
 
 ## PR 전 체크
 
-- [ ] `npm test && npm run build` 통과
+- [ ] `npm test && npm run build` 통과 (문서만 바뀐 경우 생략 가능: 대신 링크·지침 정합성 확인 + 검증란에 생략 사유)
 - [ ] 동작 변경이 있으면 `docs/specs/` 갱신 (`spec` 스킬)
 - [ ] 이번 세션의 Q&A·가정을 `docs/intent-log/`에 기록 (`intent-log` 스킬)
 - [ ] 목적 하나에 PR 하나. 범위 밖 수정이 섞였으면 빼거나 별도 PR로
