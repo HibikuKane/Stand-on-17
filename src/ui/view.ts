@@ -23,8 +23,8 @@ function signed(n: number): string {
 
 /**
  * 연출 타이밍(ms). CSS 애니메이션 길이와 맞춰 둔다 (style.css의 .deal / .flip).
- * 플레이어 카드는 기존(0.28s, 간격 140ms)보다 약 18% 느리게,
- * 딜러 홀 카드 공개와 추가 카드는 긴장감이 생기도록 충분히 느리게.
+ * 플레이어 카드는 기존(0.28s, 간격 140ms)보다 약 18% 느리게.
+ * 딜러 추가 카드는 뒷면으로 깔고(drawDeal) 그 자리에서 뒤집는다(flip).
  */
 export const TIMING = {
   /** 한 번에 여러 장 나올 때 카드 사이 간격 */
@@ -33,12 +33,14 @@ export const TIMING = {
   beforeFlip: 550,
   /** 첫 딜 직후 바로 정산되는 라운드(블랙잭 등): 4장이 다 깔린 뒤 뒤집기 */
   beforeFlipAfterDeal: 1000,
-  /** 홀 카드 뒤집기 (CSS .flip 길이와 같게) */
-  flip: 950,
-  /** 뒤집은 뒤 다음 카드까지 숨 고르기 */
+  /** 홀 카드·딜러 추가 카드 뒤집기 (CSS .flip 길이와 같게) */
+  flip: 475,
+  /** 홀 카드를 뒤집은 뒤 첫 추가 카드까지 숨 고르기 */
   afterFlip: 450,
-  /** 딜러 추가 카드 1장당 간격 */
-  dealerDraw: 800,
+  /** 딜러 추가 카드를 뒷면으로 까는 시간 (CSS .dealer .card.deal 길이와 같게) */
+  drawDeal: 475,
+  /** 추가 카드를 뒤집은 뒤 다음 추가 카드까지 */
+  betweenDraws: 300,
   /** 마지막 딜러 카드 후 결과 표시까지 */
   beforeResult: 400,
 } as const;
@@ -47,10 +49,10 @@ export const TIMING = {
 const seen = new Map<string, number>();
 
 /**
- * @param hideHole 두 번째 카드(홀 카드)를 뒷면으로
- * @param flipHole 두 번째 카드를 뒤집는 애니메이션과 함께 앞면으로
+ * @param faceUp 앞에서부터 몇 장을 앞면으로 보여 줄지. 나머지는 뒷면
+ * @param flipLast 앞면 중 마지막 장(faceUp - 1번째)을 뒤집는 애니메이션과 함께 보여 줄지
  */
-function cardsHtml(key: string, cards: readonly Card[], hideHole: boolean, flipHole = false): string {
+function cardsHtml(key: string, cards: readonly Card[], faceUp = cards.length, flipLast = false): string {
   const before = seen.get(key) ?? 0;
   seen.set(key, cards.length);
   let newIdx = 0;
@@ -58,9 +60,9 @@ function cardsHtml(key: string, cards: readonly Card[], hideHole: boolean, flipH
     .map((card, i) => {
       const isNew = i >= before;
       const anim = isNew ? ` deal" style="animation-delay:${newIdx++ * TIMING.dealStagger}ms` : '';
-      if (hideHole && i === 1) return `<div class="card back${anim}"></div>`;
+      if (i >= faceUp) return `<div class="card back${anim}"></div>`;
       const color = isRed(card) ? 'red' : 'black';
-      const flip = flipHole && i === 1 && !isNew ? ' flip' : '';
+      const flip = flipLast && i === faceUp - 1 && !isNew ? ' flip' : '';
       return `<div class="card ${color}${flip}${anim}">
         <span class="corner">${card.rank}<br>${card.suit}</span>
         <span class="pip">${card.suit}</span>
@@ -93,7 +95,7 @@ function handHtml(game: Game, hand: PlayerHand, i: number, showTotals: boolean, 
   const tags = [hand.doubled ? '더블' : ''].filter(Boolean).join(' ');
   const many = hand.cards.length >= 5 ? 'many' : '';
   return `<div class="hand ${active ? 'active' : ''} ${outcome ? 'o-' + outcome : ''} ${many}">
-    <div class="cards">${cardsHtml(`p${i}`, hand.cards, false)}</div>
+    <div class="cards">${cardsHtml(`p${i}`, hand.cards)}</div>
     <div class="hand-info">
       ${showTotals ? `<span class="total">${totalLabel(hand.cards, hand.done || settled)}</span>` : ''}
       <span class="bet">🪙 ${money(hand.bet)}${tags ? ` · ${tags}` : ''}</span>
@@ -109,9 +111,9 @@ function handHtml(game: Game, hand: PlayerHand, i: number, showTotals: boolean, 
 export interface Reveal {
   /** 지금까지 보여 준 딜러 카드 수 */
   dealerShown: number;
-  /** 홀 카드를 앞면으로 보여 주는지 */
-  holeOpen: boolean;
-  /** 이번 렌더에서 홀 카드 뒤집기 애니메이션을 재생할지 */
+  /** 그중 앞에서부터 몇 장을 앞면으로 보여 주는지. 나머지(홀 카드·막 깔린 추가 카드)는 뒷면 */
+  faceUp: number;
+  /** 이번 렌더에서 앞면 중 마지막 장(faceUp - 1번째)의 뒤집기 애니메이션을 재생할지 */
   flipNow: boolean;
   /** 정산 전 잔액 (연출이 끝날 때까지 헤더에 표시) */
   bankroll: number;
@@ -150,11 +152,10 @@ export function withoutAnim(html: string): string {
 export function renderTable(s: ViewState): TableHtml {
   const { game, showTotals, reveal } = s;
   const dealer = reveal ? game.dealer.slice(0, reveal.dealerShown) : game.dealer;
-  const holeOpen = reveal ? reveal.holeOpen : game.holeRevealed;
-  const hideHole = !holeOpen && dealer.length > 1;
+  const faceUp = reveal ? reveal.faceUp : game.holeRevealed ? dealer.length : 1;
   const dealerFinal = game.holeRevealed && !reveal;
   // 뒤집는 도중에는 합계를 갱신하지 않는다 (애니메이션이 끝난 뒤 다음 렌더에서 반영)
-  const dealerCards = hideHole || reveal?.flipNow ? dealer.slice(0, 1) : dealer;
+  const dealerCards = dealer.slice(0, reveal?.flipNow ? faceUp - 1 : faceUp);
   const dealerTotal = showTotals && dealer.length ? totalLabel(dealerCards, dealerFinal) : '';
 
   const hands = game.hands.map((h, i) => handHtml(game, h, i, showTotals, !!reveal)).join('');
@@ -162,7 +163,7 @@ export function renderTable(s: ViewState): TableHtml {
 
   return {
     dealerLabel: `딜러 ${dealerTotal ? `<span class="total">${dealerTotal}</span>` : ''}`,
-    dealerCards: cardsHtml('d', dealer, hideHole, !!reveal?.flipNow),
+    dealerCards: cardsHtml('d', dealer, faceUp, !!reveal?.flipNow),
     message: messageText(s),
     player: empty ? '<div class="placeholder">칩을 눌러 베팅하고 딜!</div>' : hands,
     playerClass: `player ${game.hands.length > 1 ? 'multi' : ''}`,
