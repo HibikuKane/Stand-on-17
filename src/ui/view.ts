@@ -5,6 +5,7 @@ export const CHIPS = [10, 50, 100, 500] as const;
 
 const OUTCOME_LABEL: Record<Outcome, string> = {
   blackjack: '블랙잭!',
+  evenmoney: '이븐 머니',
   win: '승리',
   push: '푸시',
   lose: '패배',
@@ -103,8 +104,7 @@ export function renderTable(s: ViewState): string {
 function messageText({ game, toast }: ViewState): string {
   if (toast) return `<span class="toast">${toast}</span>`;
   if (game.phase === 'insurance') {
-    const bj = handValue(game.hands[0].cards).total === 21;
-    return bj ? '딜러 A — 이븐 머니 받을까요?' : '딜러 A — 보험 들까요?';
+    return game.evenMoneyOffered ? '딜러 A — 이븐 머니(1:1 확정) 받을까요?' : '딜러 A — 보험 들까요?';
   }
   if (game.phase === 'settled' && game.summary) {
     const { net, insurance, dealerBlackjack } = game.summary;
@@ -124,12 +124,11 @@ export function renderControls(s: ViewState): string {
   const { game, bet } = s;
 
   if (game.phase === 'insurance') {
-    const cost = game.insuranceCost;
-    const bj = handValue(game.hands[0].cards).total === 21;
+    const yes = game.evenMoneyOffered
+      ? `<button data-act="even-money">이븐 머니 (+${money(game.hands[0].bet)})</button>`
+      : `<button data-act="insurance-yes" ${game.canAffordInsurance() ? '' : 'disabled'}>보험 (${money(game.insuranceCost)})</button>`;
     return `<div class="actions two">
-      <button data-act="insurance-yes" ${game.canAffordInsurance() ? '' : 'disabled'}>
-        ${bj ? '이븐 머니' : `보험 (${money(cost)})`}
-      </button>
+      ${yes}
       <button data-act="insurance-no" class="secondary">안 함</button>
     </div>`;
   }

@@ -25,8 +25,12 @@ app.innerHTML = `
 const $ = <T extends HTMLElement>(sel: string) => app.querySelector<T>(sel)!;
 const settingsDialog = $<HTMLDialogElement>('#settings');
 
+/** 마지막 라운드 경계(정산 후·베팅 중)의 잔액. 진행 중에는 베팅이 빠진 잔액을 저장하지 않는다. */
+let committedBankroll = game.bankroll;
+
 function persist(): void {
-  save({ ...data, bankroll: game.bankroll });
+  if (between()) committedBankroll = game.bankroll;
+  save({ ...data, bankroll: committedBankroll });
 }
 
 function showToast(msg: string): void {
@@ -91,6 +95,9 @@ $('#controls').addEventListener('click', (e) => {
       resetSeen();
       game.deal(data.bet);
       if (game.shuffledThisRound) showToast('🔀 슈를 섞었습니다');
+      break;
+    case 'even-money':
+      game.takeEvenMoney();
       break;
     case 'insurance-yes':
       game.resolveInsurance(true);

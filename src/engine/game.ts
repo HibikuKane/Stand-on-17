@@ -3,7 +3,7 @@ import type { Rules } from './rules';
 import type { CardSource } from './shoe';
 
 export type Phase = 'betting' | 'insurance' | 'player' | 'settled';
-export type Outcome = 'blackjack' | 'win' | 'push' | 'lose' | 'bust' | 'surrender';
+export type Outcome = 'blackjack' | 'evenmoney' | 'win' | 'push' | 'lose' | 'bust' | 'surrender';
 
 export interface PlayerHand {
   cards: Card[];
@@ -40,6 +40,8 @@ export class Game {
   hands: PlayerHand[] = [];
   active = 0;
   insuranceBet = 0;
+  /** 이븐 머니를 받았는지 (블랙잭 1:1 확정) */
+  evenMoney = false;
   /** 딜러 홀 카드가 공개되었는지 */
   holeRevealed = false;
   summary: RoundSummary | null = null;
@@ -73,6 +75,7 @@ export class Game {
     this.bankroll -= bet;
     this.roundStake = bet;
     this.insuranceBet = 0;
+    this.evenMoney = false;
     this.holeRevealed = false;
     this.summary = null;
     this.active = 0;
@@ -99,6 +102,22 @@ export class Game {
 
   canAffordInsurance(): boolean {
     return this.bankroll >= this.insuranceCost;
+  }
+
+  /** 딜러 A 업카드 + 플레이어 블랙잭 → 보험 대신 이븐 머니 제안 */
+  get evenMoneyOffered(): boolean {
+    return this.phase === 'insurance' && isBlackjack(this.hands[0].cards);
+  }
+
+  /**
+   * 이븐 머니: 딜러 확인 없이 블랙잭을 1:1로 즉시 확정.
+   * 배당과 무관하게 항상 +1×라서 6:5에서는 '블랙잭 + 보험'과 결과가 다르다.
+   */
+  takeEvenMoney(): void {
+    if (!this.evenMoneyOffered) throw new Error('이븐 머니 불가');
+    this.evenMoney = true;
+    this.hands[0].done = true;
+    this.finishRound();
   }
 
   resolveInsurance(take: boolean): void {
@@ -230,6 +249,10 @@ export class Game {
     let returned = 0;
     for (const hand of this.hands) {
       settleHand(hand, dealerTotal, dealerBJ, this.rules.blackjackPayout);
+      if (this.evenMoney) {
+        hand.outcome = 'evenmoney';
+        hand.payout = hand.bet * 2;
+      }
       returned += hand.payout!;
     }
 

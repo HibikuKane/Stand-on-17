@@ -301,6 +301,7 @@ main {
 }
 
 .badge.blackjack,
+.badge.evenmoney,
 .badge.win {
   color: var(--win);
 }

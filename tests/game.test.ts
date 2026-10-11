@@ -221,11 +221,39 @@ describe('보험', () => {
     expect(g.bankroll).toBe(1050);
   });
 
-  it('이븐 머니: 블랙잭 + 보험 → 딜러 블랙잭이어도 1:1 확정', () => {
-    const g = game(['A', 'A', 'K', 'Q']);
+  it('플레이어 블랙잭이면 이븐 머니 제안, 아니면 보험만', () => {
+    const bj = game(['A', 'A', 'K', '7']);
+    bj.deal(100);
+    expect(bj.evenMoneyOffered).toBe(true);
+
+    const normal = game(['10', 'A', '9', '7']);
+    normal.deal(100);
+    expect(normal.evenMoneyOffered).toBe(false);
+    expect(() => normal.takeEvenMoney()).toThrow();
+  });
+
+  // 플: A,K  딜: A + (홀)
+  it.each([
+    ['3:2', 1.5, 'Q'],
+    ['3:2', 1.5, '8'],
+    ['6:5', 1.2, 'Q'],
+    ['6:5', 1.2, '8'],
+  ] as const)('이븐 머니는 %s 딜러 홀 %s 에서도 항상 +1×', (_label, payout, hole) => {
+    const g = game(['A', 'A', 'K', hole], { blackjackPayout: payout });
+    g.deal(100);
+    g.takeEvenMoney();
+    expect(g.phase).toBe('settled');
+    expect(g.hands[0].outcome).toBe('evenmoney');
+    expect(g.summary!.net).toBe(100);
+    expect(g.summary!.insurance).toBeNull();
+    expect(g.bankroll).toBe(1100);
+  });
+
+  it('6:5에서 블랙잭 + 일반 보험은 1:1 확정이 아니다 (+70)', () => {
+    const g = game(['A', 'A', 'K', '8'], { blackjackPayout: 1.2 });
     g.deal(100);
     g.resolveInsurance(true);
-    expect(g.summary!.net).toBe(100);
+    expect(g.summary!.net).toBe(70);
   });
 });
 
