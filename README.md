@@ -34,6 +34,7 @@ tests/        엔진 테스트
 
 - [`docs/specs/`](docs/specs/) — 기능 사양서
 - [`docs/intent-log/`](docs/intent-log/) — 개발 세션별 의도 기록 (LLM 질문 ↔ 사용자 답변 원문)
+- [`AGENTS.md`](AGENTS.md) — AI 에이전트(Claude·GPT·Gemini) 공통 작업 규칙
 
 ## 배포
 
