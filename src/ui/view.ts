@@ -132,7 +132,20 @@ export function bankrollBeforePayout(game: Game): number {
   return game.bankroll - (game.summary.net + stake);
 }
 
-export function renderTable(s: ViewState): string {
+/** 테이블 영역별 HTML. 영역마다 따로 갱신해서, 바뀌지 않은 영역의 진행 중인 애니메이션을 지킨다 */
+export interface TableHtml {
+  dealer: string;
+  message: string;
+  player: string;
+  playerClass: string;
+}
+
+/** 애니메이션 클래스·지연을 뺀 HTML. 같으면 화면 내용이 같으므로 DOM을 다시 만들 필요가 없다 */
+export function withoutAnim(html: string): string {
+  return html.replace(/ deal" style="animation-delay:\d+ms/g, '').replace(/ flip(?=[ "])/g, '');
+}
+
+export function renderTable(s: ViewState): TableHtml {
   const { game, showTotals, reveal } = s;
   const dealer = reveal ? game.dealer.slice(0, reveal.dealerShown) : game.dealer;
   const holeOpen = reveal ? reveal.holeOpen : game.holeRevealed;
@@ -145,15 +158,14 @@ export function renderTable(s: ViewState): string {
   const hands = game.hands.map((h, i) => handHtml(game, h, i, showTotals, !!reveal)).join('');
   const empty = game.hands.length === 0;
 
-  return `
-    <section class="dealer">
+  return {
+    dealer: `
       <div class="label">딜러 ${dealerTotal ? `<span class="total">${dealerTotal}</span>` : ''}</div>
-      <div class="cards">${cardsHtml('d', dealer, hideHole, !!reveal?.flipNow)}</div>
-    </section>
-    <div class="message">${messageText(s)}</div>
-    <section class="player ${game.hands.length > 1 ? 'multi' : ''}">
-      ${empty ? '<div class="placeholder">칩을 눌러 베팅하고 딜!</div>' : hands}
-    </section>`;
+      <div class="cards">${cardsHtml('d', dealer, hideHole, !!reveal?.flipNow)}</div>`,
+    message: messageText(s),
+    player: empty ? '<div class="placeholder">칩을 눌러 베팅하고 딜!</div>' : hands,
+    playerClass: `player ${game.hands.length > 1 ? 'multi' : ''}`,
+  };
 }
 
 function messageText({ game, toast, reveal }: ViewState): string {

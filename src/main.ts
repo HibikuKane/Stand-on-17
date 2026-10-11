@@ -9,6 +9,7 @@ import {
   renderTable,
   resetSeen,
   TIMING,
+  withoutAnim,
   type Reveal,
 } from './ui/view';
 import { load, save, STARTING_BANKROLL, type SaveData } from './ui/storage';
@@ -29,7 +30,11 @@ app.innerHTML = `
     <div class="shoe" id="shoe" title="슈 잔량"><div class="shoe-bar"><i></i></div><span></span></div>
     <button id="open-settings" class="icon" aria-label="설정">⚙️</button>
   </header>
-  <main id="table"></main>
+  <main id="table">
+    <section class="dealer" id="dealer"></section>
+    <div class="message" id="message"></div>
+    <section class="player" id="player"></section>
+  </main>
   <footer id="controls"></footer>
   <dialog id="settings"></dialog>`;
 
@@ -60,12 +65,26 @@ function render(): void {
   }
   const view = { game, bet: data.bet, showTotals: data.showTotals, toast, reveal };
   $('#bankroll').textContent = money(reveal ? reveal.bankroll : game.bankroll);
-  $('#table').innerHTML = renderTable(view);
+  const table = renderTable(view);
+  patch($('#dealer'), table.dealer);
+  patch($('#message'), table.message);
+  patch($('#player'), table.player);
+  $('#player').className = table.playerClass;
   $('#controls').innerHTML = renderControls(view);
 
   const ratio = shoe.remaining / shoe.total;
   $<HTMLElement>('#shoe i').style.width = `${ratio * 100}%`;
   $('#shoe span').textContent = `${shoe.remaining}`;
+}
+
+/** 영역별 마지막 내용(애니메이션 제외). 같으면 DOM을 그대로 둬서 진행 중인 딜·뒤집기 애니메이션을 끊지 않는다 */
+const shown = new WeakMap<HTMLElement, string>();
+
+function patch(el: HTMLElement, html: string): void {
+  const key = withoutAnim(html);
+  if (shown.get(el) === key) return;
+  shown.set(el, key);
+  el.innerHTML = html;
 }
 
 /** 라운드 사이에만 룰/덱 변경을 반영 */

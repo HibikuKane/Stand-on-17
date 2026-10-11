@@ -3,7 +3,7 @@ import type { Card, Rank } from '../src/engine/cards';
 import { Game } from '../src/engine/game';
 import { DEFAULT_RULES } from '../src/engine/rules';
 import type { CardSource } from '../src/engine/shoe';
-import { bankrollBeforePayout } from '../src/ui/view';
+import { bankrollBeforePayout, renderTable, resetSeen, withoutAnim, type ViewState } from '../src/ui/view';
 
 /** 딜 순서: 플1, 딜업, 플2, 딜홀, 이후 순서대로 */
 function game(ranks: Rank[], bankroll = 1000): Game {
@@ -55,5 +55,46 @@ describe('bankrollBeforePayout (딜러 공개 연출 중 헤더 잔액)', () => 
     g.stand();
     expect(g.phase).toBe('settled');
     expect(bankrollBeforePayout(g)).toBe(800);
+  });
+});
+
+describe('영역별 렌더 (연출 중 재렌더가 애니메이션을 끊지 않게)', () => {
+  // 플: A,K 블랙잭 → 딜 직후 정산 / 딜: 10,8
+  function revealing(): ViewState {
+    resetSeen();
+    const g = game(['A', '10', 'K', '8']);
+    g.deal(100);
+    return {
+      game: g,
+      bet: 100,
+      showTotals: true,
+      toast: '',
+      reveal: { dealerShown: 2, holeOpen: false, flipNow: false, bankroll: 900 },
+    };
+  }
+
+  it('뒤집는 도중 토스트만 바뀌면 딜러·플레이어 영역은 같은 내용으로 본다', () => {
+    const s = revealing();
+    renderTable(s);
+    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    const flipping = renderTable({ ...s, toast: '🔀 슈를 섞었습니다' });
+    expect(flipping.dealer).toContain(' flip');
+    const toastGone = renderTable(s);
+    expect(withoutAnim(toastGone.dealer)).toBe(withoutAnim(flipping.dealer));
+    expect(withoutAnim(toastGone.player)).toBe(withoutAnim(flipping.player));
+    expect(toastGone.message).not.toBe(flipping.message);
+  });
+
+  it('홀 카드 공개·합계 갱신처럼 내용이 바뀌면 다른 내용으로 본다', () => {
+    const s = revealing();
+    const hidden = renderTable(s);
+    s.reveal = { ...s.reveal!, holeOpen: true, flipNow: true };
+    const flipping = renderTable(s);
+    expect(withoutAnim(flipping.dealer)).not.toBe(withoutAnim(hidden.dealer));
+    s.reveal = { ...s.reveal!, flipNow: false };
+    const flipped = renderTable(s);
+    // 뒤집기 후 합계가 10 → 18로 갱신
+    expect(withoutAnim(flipped.dealer)).not.toBe(withoutAnim(flipping.dealer));
+    expect(flipped.dealer).toContain('>18<');
   });
 });
